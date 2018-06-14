@@ -1,16 +1,20 @@
 from __future__ import print_function
+import urllib.request
 import time
+import json
+
 import boto3
 
-def upload_s3(file):
+def upload_s3(bucket_name, filename):
     s3 = boto3.resource('s3')
-    bucket = s3.Bucket("speech-audio2")
-    bucket.upload_file("sample1.m4a", "sample1.m4a")
+    bucket = s3.Bucket(bucket_name)
+    response = bucket.upload_file(filename, filename)
+    print(response)
 
-def transcribe(uri):
+def transcribe(bucket_name, filename):
     transcribe = boto3.client('transcribe')
-    job_name = "test_through_cli3"
-    job_uri = "https://s3.amazonaws.com/speech-audio2/sample1.m4a"
+    job_name = "".join([bucket_name, filename, "2"])
+    job_uri = "https://s3.amazonaws.com/%s/%s" % (bucket_name, filename)
     transcribe.start_transcription_job(
         TranscriptionJobName=job_name,
         Media={'MediaFileUri': job_uri},
@@ -24,6 +28,18 @@ def transcribe(uri):
         print("wait")
         time.sleep(5)
     print(status)
+    trans_url = status["TranscriptionJob"]["Transcript"]["TranscriptFileUri"]
+    response = urllib.request.urlopen(trans_url)
+    return data
+
+def parse_data(data)
+    data = data.read()
+    t_json = json.loads(data)
+
+    items = t_json["results"]["items"]
+    output = [item["alternatives"][0]["content"] for item in items]
+    print(output)
 
 with open("sample1.m4a") as f:
-    upload_s3(f)
+    upload_s3("speech-audio2", "sample1.m4a")
+transcribe("speech-audio2", "sample1.m4a")
