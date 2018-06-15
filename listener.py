@@ -1,6 +1,7 @@
 """PyAudio example: Record a few seconds of audio and save to a WAVE file."""
 
 import pyaudio
+import audioop
 import wave
 
 CHUNK = 1024
@@ -9,6 +10,7 @@ CHANNELS = 2
 RATE = 44100
 RECORD_SECONDS = 1
 WAVE_OUTPUT_FILENAME = "output.wav"
+THRESHOLD = 400
 
 p = pyaudio.PyAudio()
 
@@ -18,24 +20,36 @@ stream = p.open(format=FORMAT,
                 input=True,
                 frames_per_buffer=CHUNK)
 
-print("* recording")
+def record_segments(pause):
+    # After pause, segment will be stopped
+    pause_len = RATE / CHUNK * pause
+    frames = []
 
-frames = []
+    counter = 0
+    while True:
+        data = stream.read(CHUNK)
+        frames.append(data)
+        rms = audioop.rms(data, 2)
+        if rms < THRESHOLD:
+            counter += 1
+            if counter < pause_len: 
+                return frames
+        else:
+            counter = 0
 
-for i in range(0, int(RATE / CHUNK * RECORD_SECONDS)):
-    data = stream.read(CHUNK)
-    print(data)
-    frames.append(data)
+count = 0
+while True:
+    print("Written to file")
+    frames = record_segments(2)
 
-# print("* done recording")
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
 
-stream.stop_stream()
-stream.close()
-p.terminate()
-
-wf = wave.open(WAVE_OUTPUT_FILENAME, 'wb')
-wf.setnchannels(CHANNELS)
-wf.setsampwidth(p.get_sample_size(FORMAT))
-wf.setframerate(RATE)
-wf.writeframes(b''.join(frames))
-wf.close()
+    filename = WAVE_OUTPUT_FILENAME + str(count)
+    wf = wave.open(filename, 'wb')
+    wf.setnchannels(CHANNELS)
+    wf.setsampwidth(p.get_sample_size(FORMAT))
+    wf.setframerate(RATE)
+    wf.writeframes(b''.join(frames))
+    wf.close()
